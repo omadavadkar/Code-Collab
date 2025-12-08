@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Virtual Environment
+env/
+venv/
+.venv/
+
+# VS Code
+.vscode/
+
+# Byte-compiled / cache
+*.egg-info/
+.eggs/
+*.egg
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+
+# FastAPI static build caches
+staticfiles/
+
+# Pip
+pip-wheel-metadata/
+
+# Pytest / coverage
+htmlcov/
+.coverage
+.tox/
+
+# Logs
+*.log
+
+# Ignore Python build outputs
+build/
+dist/

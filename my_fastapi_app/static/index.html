@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Code Collab</title>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/theme/material-darker.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/addon/dialog/dialog.min.css">
+</head>
+<body>
+  <h1>Code Collab 🚀</h1>
+  <textarea id="editor"></textarea>
+  <button onclick="logCode()">Log Code</button>
+  <!-- Language selector and Run button -->
+<div style="margin-top: 20px;">
+  <label for="language" style="color: white;">Choose Language:</label>
+  <select id="language">
+    <option value="python">Python</option>
+    <option value="cpp">C++</option>
+    <option value="java">Java</option>
+  </select>
+  <div style="margin-top:10px;">
+    <label for="stdin" style="color:white; display:block; margin-bottom:6px;">Program Input (stdin):</label>
+    <textarea id="stdin" rows="4" style="width:100%; max-width:640px;
+      background:#1e1e1e; color:#d4d4d4; border:1px solid #333; padding:8px;
+      font-family: 'Fira Code', monospace; font-size: 13px;"></textarea>
+  </div>
+  <button onclick="runCode()">Run Code</button>
+</div>
+
+<!-- Output terminal -->
+<pre id="output" style="background: #1e1e1e; color: #00ff00; padding: 10px; margin-top: 10px; height: 200px; overflow-y: auto;"></pre>
+
+  <div id="messages" style="height: 150px; overflow-y: auto; background: #2d2d2d; padding: 10px; margin-top: 20px;"></div>
+  <input type="text" id="chatInput" placeholder="Type a message..." />
+  <button onclick="sendChat()">Send</button>
+
+  <!-- CodeMirror core + mode -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/python/python.min.js"></script>
+  <!-- Modes for HTML editing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/xml/xml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/css/css.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/htmlmixed/htmlmixed.min.js"></script>
+
+  <!-- Addons for VS Code-like behavior -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/addon/selection/active-line.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/addon/edit/matchbrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/addon/edit/closebrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/addon/comment/comment.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/keymap/sublime.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/addon/dialog/dialog.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/addon/search/jump-to-line.min.js"></script>
+  <!-- Socket.IO client (connects to Flask-SocketIO on same origin) -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+  <!-- Your initializer (creates editor once, defines logCode) -->
+  <script src="script.js"></script>
+</body>
+</html>
