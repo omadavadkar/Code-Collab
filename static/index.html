@@ -10,34 +10,55 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/theme/material-darker.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/addon/dialog/dialog.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
 </head>
 <body>
   <h1>Code Collab 🚀</h1>
-  <textarea id="editor"></textarea>
-  <button onclick="logCode()">Log Code</button>
-  <!-- Language selector and Run button -->
-<div style="margin-top: 20px;">
-  <label for="language" style="color: white;">Choose Language:</label>
-  <select id="language">
-    <option value="python">Python</option>
-    <option value="cpp">C++</option>
-    <option value="java">Java</option>
-  </select>
-  <div style="margin-top:10px;">
-    <label for="stdin" style="color:white; display:block; margin-bottom:6px;">Program Input (stdin):</label>
-    <textarea id="stdin" rows="4" style="width:100%; max-width:640px;
-      background:#1e1e1e; color:#d4d4d4; border:1px solid #333; padding:8px;
-      font-family: 'Fira Code', monospace; font-size: 13px;"></textarea>
+  
+  <div style="display: flex; height: calc(100vh - 46px);">
+    <!-- Left Panel: Editor -->
+    <div style="flex: 1; display: flex; flex-direction: column;">
+      <textarea id="editor"></textarea>
+    </div>
+
+    <!-- Right Panel: Tools and Chat -->
+    <div style="width: 350px; display: flex; flex-direction: column; background-color: #252526; border-left: 1px solid #333;">
+      
+      <!-- Top Section: Language, Input, Run Buttons -->
+      <div style="padding: 15px; border-bottom: 1px solid #333;">
+        <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+          <label for="language" style="color: #d4d4d4; font-size: 14px; font-weight: 500;">Language:</label>
+          <select id="language" style="padding: 5px; background: #3c3c3c; color: white; border: 1px solid #555; border-radius: 3px; outline: none;">
+            <option value="python">Python</option>
+            <option value="cpp">C++</option>
+            <option value="java">Java</option>
+          </select>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
+          <button onclick="runCode()" style="margin: 0; flex: 1; background: #2ea043;">Run Code</button>
+          <button onclick="logCode()" style="margin: 0; flex: 1;">Log Code</button>
+        </div>
+      </div>
+
+      <!-- Middle Section: Output -->
+      <div style="padding: 15px; border-bottom: 1px solid #333; display: flex; flex-direction: column; flex: 1; min-height: 200px; overflow: hidden;">
+        <label style="color:#d4d4d4; display:block; margin-bottom:6px; font-size: 14px; font-weight: 500;">Terminal:</label>
+        <div id="terminal" style="flex: 1; background: #000; padding: 5px; overflow: hidden; border: 1px solid #333; border-radius: 3px; height: 100%;"></div>
+      </div>
+
+      <!-- Bottom Section: Chat -->
+      <div style="padding: 15px; display: flex; flex-direction: column; flex: 1; min-height: 200px; overflow: hidden;">
+        <label style="color:#d4d4d4; display:block; margin-bottom:6px; font-size: 14px; font-weight: 500;">Team Chat:</label>
+        <div id="messages" style="flex: 1; overflow-y: auto; background: #1e1e1e; padding: 10px; border: 1px solid #333; margin-bottom: 15px; border-radius: 3px; word-wrap: break-word; font-size: 14px;"></div>
+        <div style="display: flex; gap: 10px;">
+          <input type="text" id="chatInput" placeholder="Type a message..." style="flex: 1; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #555; border-radius: 3px; outline: none; box-sizing: border-box;" />
+          <button onclick="sendChat()" style="margin: 0; padding: 8px 15px;">Send</button>
+        </div>
+      </div>
+
+    </div>
   </div>
-  <button onclick="runCode()">Run Code</button>
-</div>
-
-<!-- Output terminal -->
-<pre id="output" style="background: #1e1e1e; color: #00ff00; padding: 10px; margin-top: 10px; height: 200px; overflow-y: auto;"></pre>
-
-  <div id="messages" style="height: 150px; overflow-y: auto; background: #2d2d2d; padding: 10px; margin-top: 20px;"></div>
-  <input type="text" id="chatInput" placeholder="Type a message..." />
-  <button onclick="sendChat()">Send</button>
 
   <!-- CodeMirror core + mode -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
@@ -58,6 +79,10 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/addon/search/jump-to-line.min.js"></script>
   <!-- Socket.IO client (connects to Flask-SocketIO on same origin) -->
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+  <!-- Xterm.js -->
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
 
   <!-- Your initializer (creates editor once, defines logCode) -->
   <script src="script.js"></script>

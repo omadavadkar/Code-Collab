@@ -5,6 +5,7 @@
   let editor = null;
   let socket = null;
   let applyingRemote = false;
+  let term = null;
 
   // You can override WS base by defining window.WS_BASE before this script runs
     const DEFAULT_WS_BASE = 'ws://localhost:8000'; // e.g., ws://localhost:8000
@@ -138,6 +139,53 @@
           msgs.forEach(m => appendChatMessage(m));
         }
       });
+      socket.on('terminal_output', (payload) => {
+        if (term && payload && payload.text) {
+          term.write(payload.text);
+        }
+      });
+      socket.on('terminal_clear', () => {
+        if (term) term.clear();
+      });
+  }
+
+  function initTerminal() {
+    const termContainer = document.getElementById('terminal');
+    if (!termContainer || typeof Terminal === 'undefined') {
+      console.warn('[CodeCollab] Terminal element or library not found');
+      return;
+    }
+    term = new Terminal({
+      cursorBlink: true,
+      theme: { background: '#000' }
+    });
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(termContainer);
+    fitAddon.fit();
+    
+    // When window resizes, resize terminal
+    window.addEventListener('resize', () => {
+      fitAddon.fit();
+    });
+
+    // Send keystrokes to the server and do local echo since we lack a true PTY
+    term.onData(data => {
+      if (socket && typeof socket.emit === 'function') {
+        socket.emit('terminal_input', { room: roomId, text: data });
+      }
+      
+      // Basic local echo
+      if (data === '\\r') {
+        term.write('\\r\\n');
+      } else if (data === '\\x7f' || data === '\\b') { // Backspace
+        term.write('\\b \\b');
+      } else {
+        term.write(data);
+      }
+    });
+    
+    term.writeln('Terminal ready. Click "Run Code" to start.');
   }
 
   // Expose button handlers expected by HTML
@@ -171,40 +219,35 @@
       }
     }
   });
-    window.runCode = async function () {
+    window.runCode = function () {
     if (!editor) {
       console.warn('[CodeCollab] editor not ready');
+      return;
+    }
+    if (!socket || typeof socket.emit !== 'function') {
+      console.warn('[CodeCollab] socket not connected');
+      if (term) term.writeln('\\r\\nError: Not connected to server.');
       return;
     }
 
     const code = editor.getValue();
     const languageSelect = document.getElementById("language");
     const language = languageSelect ? languageSelect.value : "python";
-      const inputBox = document.getElementById("stdin");
-      const inputText = inputBox ? inputBox.value : "";
 
-    try {
-      const res = await fetch("/run-code", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code, language, input: inputText })
-      });
-
-      const data = await res.json();
-      const outputBox = document.getElementById("output");
-      if (outputBox) {
-        outputBox.textContent = data.output || data.error || "No output.";
-        outputBox.scrollTop = outputBox.scrollHeight;
-      }
-    } catch (err) {
-      console.error("[CodeCollab] runCode failed", err);
+    if (term) {
+      term.clear();
+      term.writeln(`\\r\\nStarting ${language} process...\\r\\n`);
+      term.focus();
     }
+
+    socket.emit('start_run', { room: roomId, code, language });
   };
 
 
   document.addEventListener('DOMContentLoaded', () => {
     console.log('[CodeCollab] DOMContentLoaded');
     initEditor();
+    initTerminal();
     initSocket();
   });
 })();

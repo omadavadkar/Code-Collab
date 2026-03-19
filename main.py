@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 import os
 import sys
-
+import shutil
 
 # Initialize the Flask application
 app = Flask(__name__)
@@ -16,6 +16,7 @@ room_chats: dict[str, list[str]] = {}
 # 1. Store room data temporarily (using a Python dictionary)
 # This dictionary will hold our room data while the server is running.
 rooms_data = {}
+running_processes = {}  # Maps room_id -> (subprocess.Popen, temp_dir_path)
 
 # --- HTML Templates ---
 # For simplicity, we'll keep the HTML directly in our Python file.
@@ -148,49 +149,104 @@ def root_script_js():
 
 # --- Socket.IO Events (no Uvicorn required) ---
 
-@app.route("/run-code", methods=["POST"])
-def run_code():
-    data = request.get_json()
-    code = data.get("code")
-    language = data.get("language")
-    stdin_text = data.get("input", "")
+@socketio.on('start_run')
+def handle_start_run(data):
+    room = (data or {}).get('room')
+    if not room: return
+    
+    code = (data or {}).get("code", "")
+    language = (data or {}).get("language", "python")
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        if language == "python":
-            file_path = os.path.join(tmpdir, "main.py")
-            with open(file_path, "w") as f:
-                f.write(code)
-            # Use the same Python interpreter running this app
-            cmd = [sys.executable, file_path]
+    if room in running_processes:
+        proc, stale_tmp = running_processes[room]
+        try: proc.kill()
+        except: pass
+        try: shutil.rmtree(stale_tmp, ignore_errors=True)
+        except: pass
+        del running_processes[room]
 
-        elif language == "cpp":
-            source_path = os.path.join(tmpdir, "main.cpp")
-            exe_name = "main.exe" if os.name == "nt" else "main.out"
-            exe_path = os.path.join(tmpdir, exe_name)
-            with open(source_path, "w") as f:
-                f.write(code)
-            compile_result = subprocess.run(["g++", source_path, "-o", exe_path], capture_output=True, text=True)
-            if compile_result.returncode != 0:
-                return {"error": compile_result.stderr}
-            cmd = [exe_path]
+    tmpdir = tempfile.mkdtemp()
+    
+    if language == "python":
+        file_path = os.path.join(tmpdir, "main.py")
+        with open(file_path, "w") as f: f.write(code)
+        # Use -u for unbuffered Python output
+        cmd = [sys.executable, "-u", file_path]
+        
+    elif language == "cpp":
+        source_path = os.path.join(tmpdir, "main.cpp")
+        exe_name = "main.exe" if os.name == "nt" else "main.out"
+        exe_path = os.path.join(tmpdir, exe_name)
+        with open(source_path, "w") as f: f.write(code)
+        compile_result = subprocess.run(["g++", source_path, "-o", exe_path], capture_output=True, text=True)
+        if compile_result.returncode != 0:
+            socketio.emit('terminal_output', {'text': f"{compile_result.stderr}\r\n".replace('\n', '\r\n')}, to=room)
+            shutil.rmtree(tmpdir, ignore_errors=True)
+            return
+        cmd = [exe_path]
+        
+    elif language == "java":
+        source_path = os.path.join(tmpdir, "Main.java")
+        with open(source_path, "w") as f: f.write(code)
+        compile_result = subprocess.run(["javac", source_path], capture_output=True, text=True)
+        if compile_result.returncode != 0:
+            socketio.emit('terminal_output', {'text': f"{compile_result.stderr}\r\n".replace('\n', '\r\n')}, to=room)
+            shutil.rmtree(tmpdir, ignore_errors=True)
+            return
+        cmd = ["java", "-cp", tmpdir, "Main"]
+    else:
+        return
 
-        elif language == "java":
-            source_path = os.path.join(tmpdir, "Main.java")
-            with open(source_path, "w") as f:
-                f.write(code)
-            compile_result = subprocess.run(["javac", source_path], capture_output=True, text=True)
-            if compile_result.returncode != 0:
-                return {"error": compile_result.stderr}
-            cmd = ["java", "-cp", tmpdir, "Main"]
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            cwd=tmpdir,
+            bufsize=0 # important for immediate output
+        )
+        running_processes[room] = (proc, tmpdir)
+        
+        def read_output(p, r, tdir):
+            while True:
+                char = p.stdout.read(1)
+                if not char:
+                    break
+                try:
+                    text = char.decode('utf-8', errors='replace')
+                    if text == '\n': text = '\r\n'
+                    socketio.emit('terminal_output', {'text': text}, to=r)
+                except:
+                    pass
+            p.wait()
+            socketio.emit('terminal_output', {'text': f'\r\n[Process exited with code {p.returncode}]\r\n'}, to=r)
+            if running_processes.get(r, (None, None))[0] == p:
+                del running_processes[r]
+                try: shutil.rmtree(tdir, ignore_errors=True)
+                except: pass
 
-        else:
-            return {"error": "Unsupported language"}
+        socketio.start_background_task(read_output, proc, room, tmpdir)
+        
+    except Exception as e:
+        socketio.emit('terminal_output', {'text': f'\r\nError: {str(e)}\r\n'}, to=room)
 
+@socketio.on('terminal_input')
+def handle_terminal_input(data):
+    room = (data or {}).get('room')
+    text = (data or {}).get('text', '')
+    if not room or not text: return
+    
+    if room in running_processes:
+        proc, _ = running_processes[room]
         try:
-            result = subprocess.run(cmd, input=stdin_text, capture_output=True, text=True, timeout=5)
-            return {"output": result.stdout, "error": result.stderr}
+            if proc.poll() is None:
+                # Replace carriage return from xterm with newline for subprocess
+                mapped_text = text.replace('\\r', '\\n')
+                proc.stdin.write(mapped_text.encode('utf-8'))
+                proc.stdin.flush()
         except Exception as e:
-            return {"error": str(e)}
+            print("Error writing to stdin", e)
 
 
 
