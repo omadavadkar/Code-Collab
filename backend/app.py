@@ -93,8 +93,9 @@ def run_code(language: str, code: str) -> str:
         return "Unsupported language."
     except subprocess.TimeoutExpired:
         return "Execution timed out after 3 seconds."
-    except Exception as exc:
-        return f"Execution error: {exc}"
+    except Exception:
+        app.logger.exception("Unhandled error while executing code.")
+        return "Execution failed due to an internal error."
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
